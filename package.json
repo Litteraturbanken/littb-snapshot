@@ -1,8 +1,12 @@
 {
   "name": "snapshot-puppeteer",
   "version": "1.0.0",
+  "author" : "Johan Roxendal",
   "main": "index.js",
   "license": "MIT",
+  "scripts" : {
+    "start" : "babel-node src/index.js"
+  },
   "dependencies": {
     "express": "^4.16.4",
     "puppeteer": "^1.11.0"
