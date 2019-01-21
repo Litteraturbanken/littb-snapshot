@@ -10,7 +10,7 @@ let browser = null
 const app = express()
 app.get("*", async function(req, res, next) {
     if(!browser) {
-        browser = await puppeteer.launch({ args: ["--no-sandbox"] })
+        browser = await puppeteer.launch({ args: ["--no-sandbox", '--disable-dev-shm-usage', '--disable-setuid-sandbox'] })
     }
     let path = url.parse(req.originalUrl).pathname
     console.log("path", path)
@@ -23,7 +23,7 @@ app.get("*", async function(req, res, next) {
 })
 const HOST = process.env.HOST || '0.0.0.0'
 const PORT = 3000
-app.listen(PORT, HOST, () => console.log(`Listening on ${HOST:PORT}.`))
+app.listen(PORT, HOST, () => console.log(`Listening on ${HOST}:${PORT}.`))
 
 
 async function main() {
