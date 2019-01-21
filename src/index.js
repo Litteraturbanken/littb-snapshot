@@ -21,9 +21,9 @@ app.get("*", async function(req, res, next) {
     res.type('html')
     res.send(html)
 })
-
-const port = 3000
-app.listen(port, () => console.log(`Listening on port ${port}.`))
+const HOST = process.env.HOST || '0.0.0.0'
+const PORT = 3000
+app.listen(PORT, HOST, () => console.log(`Listening on ${HOST:PORT}.`))
 
 
 async function main() {
