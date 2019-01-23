@@ -22,7 +22,7 @@ app.get("*", async function(req, res, next) {
     res.send(html)
 })
 const HOST = process.env.HOST || '0.0.0.0'
-const PORT = 3000
+const PORT = 8080
 app.listen(PORT, HOST, () => console.log(`Listening on ${HOST}:${PORT}.`))
 
 
