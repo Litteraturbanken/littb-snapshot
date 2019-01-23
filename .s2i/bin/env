@@ -1,1 +1,1 @@
-export USE_YARN=true
+export YARN_ENABLED=true
