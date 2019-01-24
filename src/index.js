@@ -13,11 +13,12 @@ app.get("*", async function(req, res, next) {
         browser = await puppeteer.launch({ args: ["--no-sandbox", '--disable-dev-shm-usage', '--disable-setuid-sandbox'] })
     }
     let path = url.parse(req.originalUrl).pathname
-    console.log("path", path)
+    // console.log("path", path)
     const from = "https://litteraturbanken.se" + path
-    console.time("fetch")
+    console.time("fetch" + path)
     let html = await crawler({ url : from, browser})
-    console.timeEnd("fetch") 
+    console.timeEnd("fetch" + path) 
+    console.log("html", html.length)
     res.type('html')
     res.send(html)
 })
