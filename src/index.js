@@ -1,4 +1,5 @@
 import express from "express"
+import proxy from "http-proxy-middleware"
 import crawler from "./crawler"
 
 import puppeteer from "puppeteer"
@@ -14,6 +15,9 @@ function cleanHtml(html) {
 }
 
 const app = express()
+
+app.use(['/txt', '/img', '/red', "/fonts", "*.css"], proxy({ target: 'https://litteraturbanken.se', changeOrigin: true }))
+
 app.get("*", async function(req, res, next) {
     if(!browser) {
         browser = await puppeteer.launch({ args: ["--no-sandbox", '--disable-dev-shm-usage', '--disable-setuid-sandbox'] })
@@ -21,11 +25,17 @@ app.get("*", async function(req, res, next) {
     let path = url.parse(req.originalUrl).pathname
     // console.log("path", path)
     const from = "https://litteraturbanken.se" + path
-    console.time("fetch" + path)
-    let html = await crawler({ url : from, browser})
-    console.timeEnd("fetch" + path) 
+    console.time("fetch " + path)
+    const type = path.split(".")[path.split(".").length - 1]
+    let content = await crawler({ url : from, browser})
+    console.timeEnd("fetch " + path) 
+    // if(type == "html" || !type) {
     res.type('html')
-    res.send(cleanHtml(html))
+    res.send(cleanHtml(content))
+    // } else if(["css", "jpeg", "jpg"].includes(type)) {
+    //     res.type(type)
+    //     res.send(content)
+    // }
 })
 const HOST = process.env.HOST || '0.0.0.0'
 const PORT = 8080
