@@ -14,28 +14,39 @@ function cleanHtml(html) {
     return $.html()
 }
 
+function getErrors($) {
+    const err = $('[littb-err]')
+    const errType = null, errMsg = null
+    if(err.length) {
+        errType = Number(err.attr("code"))
+        errMsg = err.attr("msg")
+    }
+    return {errType, errMsg}
+}
+
 const app = express()
 
-app.use(['/txt', '/img', '/red', "/fonts", "*.css"], proxy({ target: 'https://litteraturbanken.se', changeOrigin: true }))
+app.use(['/txt', '/img', '/red', "/fonts", "/favicon.ico", "*.css"], proxy({ target: 'https://litteraturbanken.se', changeOrigin: true }))
 
 app.get("*", async function(req, res, next) {
     if(!browser) {
         browser = await puppeteer.launch({ args: ["--no-sandbox", '--disable-dev-shm-usage', '--disable-setuid-sandbox'] })
     }
     let path = url.parse(req.originalUrl).pathname
-    // console.log("path", path)
     const from = "https://litteraturbanken.se" + path
+    // const from = "http://localhost:9000" + path
     console.time("fetch " + path)
     const type = path.split(".")[path.split(".").length - 1]
     let content = await crawler({ url : from, browser})
+    const $ = cheerio.load(content)
     console.timeEnd("fetch " + path) 
-    // if(type == "html" || !type) {
-    res.type('html')
-    res.send(cleanHtml(content))
-    // } else if(["css", "jpeg", "jpg"].includes(type)) {
-    //     res.type(type)
-    //     res.send(content)
-    // }
+    const {errMsg, errType} = getErrors($) // let app.get crash 
+    if(errType) {
+        res.status(errType).send(errMsg)
+    } else {
+        res.type('html')
+        res.send(cleanHtml(content))
+    }
 })
 const HOST = process.env.HOST || '0.0.0.0'
 const PORT = 8080
