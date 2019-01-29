@@ -40,7 +40,7 @@ app.get("*", async function(req, res, next) {
     // const from = "http://localhost:9000" + path
     console.time("fetch " + path)
     const type = path.split(".")[path.split(".").length - 1]
-    let content = await crawler({ url : from, browser})
+    let content = await crawler({ url : from, browser, ua: req.get('User-Agent')})
     const $ = cheerio.load(content)
     console.timeEnd("fetch " + path) 
     const {errMsg, errType} = getErrors($) // let app.get crash 
