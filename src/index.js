@@ -16,7 +16,7 @@ function cleanHtml(html) {
 
 function getErrors($) {
     const err = $('[littb-err]')
-    const errType = null, errMsg = null
+    let errType = null, errMsg = null
     if(err.length) {
         errType = Number(err.attr("code"))
         errMsg = err.attr("msg")
@@ -33,8 +33,9 @@ app.get("*", async function(req, res, next) {
         browser = await puppeteer.launch({ args: ["--no-sandbox", '--disable-dev-shm-usage', '--disable-setuid-sandbox'] })
     }
     let path = url.parse(req.originalUrl).pathname
-    const from = "https://litteraturbanken.se" + path
-    // const from = "http://localhost:9000" + path
+    path = path.replace("/&_escaped_fragment_=", "")
+    // const from = "https://litteraturbanken.se" + path
+    const from = "http://localhost:9000" + path
     console.time("fetch " + path)
     const type = path.split(".")[path.split(".").length - 1]
     let content = await crawler({ url : from, browser})
