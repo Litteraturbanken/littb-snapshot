@@ -12,7 +12,7 @@ const SERVER_ROOT = process.env.SERVER_ROOT || "https://litteraturbanken.se"
 
 function cleanHtml(html) {
     const $ = cheerio.load(html)
-    $("script[src]").remove()
+    $("script[src],script[data-ga]").remove()
     return $.html()
 }
 
@@ -40,10 +40,10 @@ app.get("*", async function(req, res, next) {
     // const from = "http://localhost:9000" + path
     console.time("fetch " + path)
     const type = path.split(".")[path.split(".").length - 1]
-    let content = await crawler({ url : from, browser, ua: req.get('User-Agent')})
+    let content = await crawler({ url : from, browser})
     const $ = cheerio.load(content)
     console.timeEnd("fetch " + path) 
-    const {errMsg, errType} = getErrors($) // let app.get crash 
+    const {errMsg, errType} = getErrors($)
     if(errType) {
         res.status(errType).send(errMsg)
     } else {

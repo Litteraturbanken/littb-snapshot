@@ -1,13 +1,13 @@
 
 
-async function crawler({ browser, url, ua }) {
+async function crawler({ browser, url }) {
 
     let page = null
     let html = false
 
     try {
         page = await browser.newPage()
-        await page.setUserAgent(ua)
+        await page.setUserAgent("littb-snapshot")
         // page.on('console', msg => console.log('PAGE LOG:', msg.text()))
         // await page.evaluate(() => console.log(`UA is ${navigator.userAgent}`))
         //networkidle0: consider navigation to be finished when
