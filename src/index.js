@@ -36,6 +36,9 @@ app.get("*", async function(req, res, next) {
     }
     let path = url.parse(req.originalUrl).pathname
     path = path.replace("/&_escaped_fragment_=", "")
+    if(path == "/index.html.gz") {
+        path = "/"
+    }
     const from = SERVER_ROOT + path
     // const from = "http://localhost:9000" + path
     console.time("fetch " + path)
