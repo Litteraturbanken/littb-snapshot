@@ -8,6 +8,8 @@ import cheerio from "cheerio"
 
 let browser = null
 
+const SERVER_ROOT = process.env.SERVER_ROOT || "https://litteraturbanken.se"
+
 function cleanHtml(html) {
     const $ = cheerio.load(html)
     $("script[src]").remove()
@@ -34,8 +36,8 @@ app.get("*", async function(req, res, next) {
     }
     let path = url.parse(req.originalUrl).pathname
     path = path.replace("/&_escaped_fragment_=", "")
-    // const from = "https://litteraturbanken.se" + path
-    const from = "http://localhost:9000" + path
+    const from = SERVER_ROOT + path
+    // const from = "http://localhost:9000" + path
     console.time("fetch " + path)
     const type = path.split(".")[path.split(".").length - 1]
     let content = await crawler({ url : from, browser})
@@ -51,4 +53,4 @@ app.get("*", async function(req, res, next) {
 })
 const HOST = process.env.HOST || '0.0.0.0'
 const PORT = 8080
-app.listen(PORT, HOST, () => console.log(`Listening on ${HOST}:${PORT}.`))
+app.listen(PORT, HOST, () => console.log(`Listening on ${HOST}:${PORT}. Fetching from ${SERVER_ROOT}`))
