@@ -12,7 +12,7 @@ const SERVER_ROOT = process.env.SERVER_ROOT || "https://litteraturbanken.se"
 
 function cleanHtml(html) {
     const $ = cheerio.load(html)
-    $("script[src],script[data-ga]").remove()
+    $("script[src]").remove()
     return $.html()
 }
 
