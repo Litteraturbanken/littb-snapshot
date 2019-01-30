@@ -13,6 +13,9 @@ async function crawler({ browser, url }) {
         //networkidle0: consider navigation to be finished when
         //there are no more than 2 network connections for at least 500 ms.
         //(https://github.com/GoogleChrome/puppeteer/blob/master/docs/api.md#pagegobackoptions)
+        page.on('pageerror', pageerr => {
+            console.log('pageerror occurred: ', pageerr);
+        })
         await page.goto(url, { waitUntil: "networkidle0" })
         html = await page.content()
     } catch (e) {

@@ -22,6 +22,9 @@ function getErrors($) {
     if(err.length) {
         errType = Number(err.attr("code"))
         errMsg = err.attr("msg")
+    } else if($("#mainview").is(":empty")) {
+        errType = 500
+        errMsg = "Internal server error."
     }
     return {errType, errMsg}
 }
