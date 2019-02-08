@@ -45,15 +45,26 @@ app.get("*", async function(req, res, next) {
     }
     const from = SERVER_ROOT + path
     // const from = "http://localhost:9000" + path
-    console.time("fetch " + path)
+    
     const type = path.split(".")[path.split(".").length - 1]
-    let content = await crawler({ url : from, browser})
-    const $ = cheerio.load(content)
-    console.timeEnd("fetch " + path) 
-    const {errMsg, errType} = getErrors($)
+    
+    try {
+        var content = await crawler({ url : from, browser})
+    } catch(e) {
+        console.warn("fetch error", e)
+        errMsg = e.message
+        errType = 500
+    }
+    if(!errType) {
+        const $ = cheerio.load(content)
+        var {errMsg, errType} = getErrors($)
+    }
+
     if(errType) {
+        console.log("fetch error for", path)
         res.status(errType).send(errMsg)
     } else {
+        console.log("fetch success for", path)
         res.type('html')
         res.send(cleanHtml(content))
     }    
