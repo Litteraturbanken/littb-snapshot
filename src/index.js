@@ -34,8 +34,9 @@ const app = express()
 app.use(['/txt', '/img', '/red', "/fonts", "/favicon.ico", "*.css"], proxy({ target: 'https://litteraturbanken.se', changeOrigin: true }))
 
 app.get("*", async function(req, res, next) {
-    if(!browser) {
+    if(!browser || browser.isClosed) {
         browser = await puppeteer.launch({ args: ["--no-sandbox", '--disable-dev-shm-usage', '--disable-setuid-sandbox'] })
+        browser._process.once('close', () => browser.isClosed = true);
     }
     let path = url.parse(req.originalUrl).pathname
     path = path.replace("/&_escaped_fragment_=", "")
@@ -55,7 +56,7 @@ app.get("*", async function(req, res, next) {
     } else {
         res.type('html')
         res.send(cleanHtml(content))
-    }
+    }    
 })
 const HOST = process.env.HOST || '0.0.0.0'
 const PORT = 8080
