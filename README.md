@@ -2,6 +2,10 @@
 
 Ajaxsnapshot generator for Googlebot. 
 
+# Install to Ubuntu:
+Additional dependencies here:
+https://github.com/puppeteer/puppeteer/blob/main/docs/troubleshooting.md#chrome-doesnt-launch-on-linux
+
 # Usage: 
 1. `yarn install` or `npm install`
 2. `yarn start` or `npm run start`
