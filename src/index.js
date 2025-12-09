@@ -78,5 +78,5 @@ app.get("/{*splat}", async function(req, res, next) {
     }    
 })
 const HOST = process.env.HOST || '0.0.0.0'
-const PORT = process.env.HOST || 8282
+const PORT = process.env.PORT || 8282
 app.listen(PORT, HOST, () => console.log(`Listening on ${HOST}:${PORT}. Fetching from ${SERVER_ROOT}`))
