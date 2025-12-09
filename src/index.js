@@ -34,6 +34,11 @@ const app = express()
 app.use(['/txt', '/img', '/red', "/fonts", "/favicon.ico"], createProxyMiddleware({ target: 'https://litteraturbanken.se', changeOrigin: true }))
 app.use(/(.*\.css$)/, createProxyMiddleware({ target: 'https://litteraturbanken.se', changeOrigin: true }))
 
+// Health check endpoint
+app.get('/healthz', (req, res) => {
+    res.status(200).json({ status: 'ok', browser: browser?.connected ?? false })
+})
+
 app.get("/{*splat}", async function(req, res, next) {
     if(!browser || !browser.connected) {
         browser = await puppeteer.launch({ args: ["--no-sandbox", '--disable-dev-shm-usage', '--disable-setuid-sandbox'] })
