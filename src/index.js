@@ -41,7 +41,10 @@ app.get('/healthz', (req, res) => {
 
 app.get("/{*splat}", async function(req, res, next) {
     if(!browser || !browser.connected) {
-        browser = await puppeteer.launch({ args: ["--no-sandbox", '--disable-dev-shm-usage', '--disable-setuid-sandbox'] })
+        browser = await puppeteer.launch({ 
+            executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || undefined,
+            args: ["--no-sandbox", '--disable-dev-shm-usage', '--disable-setuid-sandbox'] 
+        })
     }
     let path = new URL(req.originalUrl, `http://${req.hostname}`).pathname
     path = path.replace("/&_escaped_fragment_=", "")
