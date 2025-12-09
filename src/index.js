@@ -1,10 +1,10 @@
 import express from "express"
-import proxy from "http-proxy-middleware"
+import { createProxyMiddleware } from "http-proxy-middleware"
 import crawler from "./crawler"
 
 import puppeteer from "puppeteer"
 import url from "url"
-import cheerio from "cheerio"
+import * as cheerio from "cheerio"
 
 let browser = null
 
@@ -31,12 +31,12 @@ function getErrors($) {
 
 const app = express()
 
-app.use(['/txt', '/img', '/red', "/fonts", "/favicon.ico", "*.css"], proxy({ target: 'https://litteraturbanken.se', changeOrigin: true }))
+app.use(['/txt', '/img', '/red', "/fonts", "/favicon.ico"], createProxyMiddleware({ target: 'https://litteraturbanken.se', changeOrigin: true }))
+app.use(/(.*\.css$)/, createProxyMiddleware({ target: 'https://litteraturbanken.se', changeOrigin: true }))
 
-app.get("*", async function(req, res, next) {
-    if(!browser || browser.isClosed) {
+app.get("/{*splat}", async function(req, res, next) {
+    if(!browser || !browser.connected) {
         browser = await puppeteer.launch({ args: ["--no-sandbox", '--disable-dev-shm-usage', '--disable-setuid-sandbox'] })
-        browser._process.once('close', () => browser.isClosed = true);
     }
     let path = url.parse(req.originalUrl).pathname
     path = path.replace("/&_escaped_fragment_=", "")
