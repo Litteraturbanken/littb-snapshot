@@ -6,6 +6,15 @@
 # - Fetches app code via git artifact
 # - Exposes HTTP service and registers in Consul with Caddy ingress tags
 #
+# Deploy with:
+#   GIT_COMMIT=$(git ls-remote https://github.com/Litteraturbanken/littb-snapshot.git HEAD | cut -f1)
+#   nomad job run -var="git_commit=$GIT_COMMIT" snapshot.nomad
+#
+
+variable "git_commit" {
+  type        = string
+  description = "Git commit SHA to deploy (forces redeployment when changed)"
+}
 
 job "snapshot" {
   datacenters = ["local"]
@@ -45,8 +54,9 @@ job "snapshot" {
       }
 
       # Fetch the app from git
+      # Set GIT_COMMIT env var before running: nomad job run -var="git_commit=$(git ls-remote ...)"
       artifact {
-        source      = "git::https://github.com/Litteraturbanken/littb-snapshot.git"
+        source      = "git::https://github.com/Litteraturbanken/littb-snapshot.git?ref=${var.git_commit}"
         destination = "local/app"
       }
 
