@@ -90,16 +90,16 @@ export async function generateOgImage({ browser, url, outputPath }) {
                     display: flex !important;
                     align-items: center !important;
                     justify-content: center !important;
-                    padding: 60px !important;
+                    padding: 30px 50px !important;
                     box-sizing: border-box !important;
                 }
                 
                 .etext.txt {
-                    max-width: 800px !important;
-                    max-height: 480px !important;
+                    max-width: 900px !important;
+                    max-height: 560px !important;
                     overflow: hidden !important;
-                    font-size: 24px !important;
-                    line-height: 1.6 !important;
+                    font-size: 22px !important;
+                    line-height: 1.5 !important;
                     color: #2c2c2c !important;
                     text-align: center !important;
                     position: relative !important;
@@ -107,21 +107,22 @@ export async function generateOgImage({ browser, url, outputPath }) {
                 
                 /* Style poem headings */
                 ._head, .poemname {
-                    font-size: 32px !important;
+                    font-size: 24px !important;
                     font-weight: 600 !important;
-                    margin-bottom: 24px !important;
-                    letter-spacing: 0.1em !important;
+                    margin-bottom: 12px !important;
+                    margin-top: 0 !important;
+                    letter-spacing: 0.05em !important;
                     color: #1a1a1a !important;
                 }
                 
                 /* Poetry line styling */
                 ._l {
                     display: block !important;
-                    margin: 4px 0 !important;
+                    margin: 2px 0 !important;
                 }
                 
                 ._lg {
-                    margin: 16px 0 !important;
+                    margin: 10px 0 !important;
                 }
                 
                 /* Fade out overflow text */
