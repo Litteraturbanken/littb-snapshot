@@ -8,6 +8,31 @@
 const OG_IMAGE_WIDTH = 1200
 const OG_IMAGE_HEIGHT = 630
 
+// Simple in-memory cache for generated images (key: url, value: {buffer, timestamp})
+const imageCache = new Map()
+const CACHE_TTL = 60 * 60 * 1000 // 1 hour in ms
+const MAX_CACHE_SIZE = 100
+
+function getCachedImage(url) {
+    const cached = imageCache.get(url)
+    if (cached && (Date.now() - cached.timestamp) < CACHE_TTL) {
+        return cached.buffer
+    }
+    if (cached) {
+        imageCache.delete(url) // Expired
+    }
+    return null
+}
+
+function setCachedImage(url, buffer) {
+    // Evict oldest if cache is full
+    if (imageCache.size >= MAX_CACHE_SIZE) {
+        const oldestKey = imageCache.keys().next().value
+        imageCache.delete(oldestKey)
+    }
+    imageCache.set(url, { buffer, timestamp: Date.now() })
+}
+
 /**
  * Check if a URL is a reader page
  */
@@ -35,20 +60,42 @@ export function parseReaderUrl(urlPath) {
  * Generate OG preview image from a reader page
  */
 export async function generateOgImage({ browser, url, outputPath }) {
+    // Check cache first
+    const cached = getCachedImage(url)
+    if (cached) {
+        return cached
+    }
+    
     let page = null
     
     try {
         page = await browser.newPage()
         await page.setUserAgent("littb-snapshot-og")
         
+        // Block unnecessary resources for faster loading
+        await page.setRequestInterception(true)
+        page.on('request', (req) => {
+            const resourceType = req.resourceType()
+            // Block images, media, and tracking scripts - we only need HTML/CSS/fonts
+            if (['image', 'media', 'websocket'].includes(resourceType)) {
+                req.abort()
+            } else if (resourceType === 'script' && !req.url().includes('litteraturbanken')) {
+                // Block third-party scripts (analytics, etc.)
+                req.abort()
+            } else {
+                req.continue()
+            }
+        })
+        
         // Set viewport to OG image dimensions
         await page.setViewport({
             width: OG_IMAGE_WIDTH,
             height: OG_IMAGE_HEIGHT,
-            deviceScaleFactor: 2 // Retina for crisp text
+            deviceScaleFactor: 1.5 // Slightly lower for speed, still good quality
         })
         
-        await page.goto(url, { waitUntil: "networkidle0" })
+        // Use domcontentloaded + waitForSelector instead of slow networkidle0
+        await page.goto(url, { waitUntil: "domcontentloaded" })
         
         // Wait for the text content to load
         await page.waitForSelector('.etext.txt', { timeout: 10000 })
@@ -148,7 +195,7 @@ export async function generateOgImage({ browser, url, outputPath }) {
         // Take the screenshot
         const screenshotBuffer = await page.screenshot({
             type: 'jpeg',
-            quality: 90,
+            quality: 85, // Slightly lower for smaller file size
             clip: {
                 x: 0,
                 y: 0,
@@ -156,6 +203,9 @@ export async function generateOgImage({ browser, url, outputPath }) {
                 height: OG_IMAGE_HEIGHT
             }
         })
+        
+        // Cache the result
+        setCachedImage(url, screenshotBuffer)
         
         return screenshotBuffer
         
