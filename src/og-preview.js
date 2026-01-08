@@ -125,16 +125,17 @@ export async function generateOgImage({ browser, url, outputPath }) {
                     margin: 10px 0 !important;
                 }
                 
-                /* Fade out overflow text */
-                .etext.txt::after {
+                /* Fade out overflow text - on full-width container */
+                #mainview::after {
                     content: '' !important;
-                    position: absolute !important;
+                    position: fixed !important;
                     bottom: 0 !important;
                     left: 0 !important;
                     right: 0 !important;
-                    height: 100px !important;
+                    height: 120px !important;
                     background: linear-gradient(transparent, #f5f0e8) !important;
                     pointer-events: none !important;
+                    z-index: 100 !important;
                 }
                 
                 /* Hide page number elements */
