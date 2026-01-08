@@ -5,6 +5,8 @@
  * for reader pages (URLs containing /sida/).
  */
 
+import sharp from 'sharp'
+
 const OG_IMAGE_WIDTH = 1200
 const OG_IMAGE_HEIGHT = 630
 
@@ -41,6 +43,13 @@ export function isReaderPage(urlPath) {
 }
 
 /**
+ * Check if a URL is a facsimile page
+ */
+export function isFacsimilePage(urlPath) {
+    return urlPath.endsWith('/faksimil')
+}
+
+/**
  * Parse reader URL to extract metadata
  * URL format: /författare/{authorId}/titlar/{titleId}/sida/{pageNum}/etext
  */
@@ -57,6 +66,84 @@ export function parseReaderUrl(urlPath) {
 }
 
 /**
+ * Generate OG image for a facsimile page by fetching the underlying image
+ * and resizing/cropping it to OG dimensions
+ */
+async function generateFacsimileOgImage({ browser, url }) {
+    let page = null
+    
+    try {
+        page = await browser.newPage()
+        await page.setUserAgent("littb-snapshot-og")
+        
+        // Navigate and wait for the facsimile image to load
+        await page.goto(url, { waitUntil: "domcontentloaded", timeout: 30000 })
+        
+        // Wait for the facsimile image to have a non-empty src attribute
+        // The Angular app loads the image dynamically, so we need to wait for src to be set
+        try {
+            await page.waitForFunction(
+                () => {
+                    const img = document.querySelector('img.faksimil')
+                    return img && img.src && img.src.length > 0
+                },
+                { timeout: 15000 }
+            )
+        } catch (selectorError) {
+            // Log what images are on the page for debugging
+            const images = await page.evaluate(() => {
+                return Array.from(document.querySelectorAll('img')).map(img => ({
+                    src: img.src,
+                    className: img.className
+                }))
+            })
+            console.error('[Facsimile] Images on page:', JSON.stringify(images, null, 2))
+            throw new Error(`Facsimile image not loaded: ${selectorError.message}`)
+        }
+        
+        // Get the facsimile image URL
+        let imageUrl = await page.evaluate(() => {
+            const img = document.querySelector('img.faksimil')
+            return img ? img.src : null
+        })
+        
+        if (!imageUrl) {
+            throw new Error('Could not find facsimile image')
+        }
+        
+        // Request the largest pre-rendered size (5) instead of whatever size the page loaded
+        // URL pattern: .../lb11625223_3/lb11625223_3_0003.jpeg -> .../lb11625223_5/lb11625223_5_0003.jpeg
+        // Replace both folder and filename size indicators
+        imageUrl = imageUrl.replace(/_[1-4](\/)/g, '_5$1')  // folder
+        imageUrl = imageUrl.replace(/_[1-4]_(\d+\.jpeg)$/, '_5_$1')  // filename
+        
+        // Fetch the largest size image
+        const response = await fetch(imageUrl)
+        if (!response.ok) {
+            throw new Error(`Failed to fetch facsimile image: ${response.status}`)
+        }
+        const imageBuffer = Buffer.from(await response.arrayBuffer())
+        
+        // Use sharp to resize and crop to OG dimensions
+        // We'll resize to fit width, then crop from top to get OG aspect ratio
+        const processedImage = await sharp(imageBuffer)
+            .resize(OG_IMAGE_WIDTH, OG_IMAGE_HEIGHT, {
+                fit: 'cover',
+                position: 'top' // Keep top of image, crop bottom
+            })
+            .jpeg({ quality: 85 })
+            .toBuffer()
+        
+        return processedImage
+        
+    } finally {
+        if (page) {
+            await page.close()
+        }
+    }
+}
+
+/**
  * Generate OG preview image from a reader page
  */
 export async function generateOgImage({ browser, url, outputPath }) {
@@ -64,6 +151,13 @@ export async function generateOgImage({ browser, url, outputPath }) {
     const cached = getCachedImage(url)
     if (cached) {
         return cached
+    }
+    
+    // For facsimile pages, fetch the underlying image directly (much faster)
+    if (isFacsimilePage(url)) {
+        const imageBuffer = await generateFacsimileOgImage({ browser, url })
+        setCachedImage(url, imageBuffer)
+        return imageBuffer
     }
     
     let page = null
@@ -139,6 +233,8 @@ export async function generateOgImage({ browser, url, outputPath }) {
                     justify-content: center !important;
                     padding: 30px 50px !important;
                     box-sizing: border-box !important;
+                    container-type: inline-size !important;
+                    container-name: mainview !important;
                 }
                 
                 .etext.txt {
@@ -152,8 +248,28 @@ export async function generateOgImage({ browser, url, outputPath }) {
                     position: relative !important;
                 }
                 
+                /* Container query: scale down text for narrower containers */
+                @container mainview (max-width: 1100px) {
+                    .etext.txt {
+                        font-size: 20px !important;
+                    }
+                    ._head, .poemname, .titlepage h1, .titlepage h2, .titlepage .title {
+                        font-size: 22px !important;
+                    }
+                }
+                
+                @container mainview (max-width: 900px) {
+                    .etext.txt {
+                        font-size: 18px !important;
+                    }
+                    ._head, .poemname, .titlepage h1, .titlepage h2, .titlepage .title {
+                        font-size: 20px !important;
+                    }
+                }
+                
                 /* Style poem headings and title pages */
-                ._head, .poemname, .titlepage h1, .titlepage h2, .titlepage .title {
+                ._head, .poemname, .titlepage h1, .titlepage h2, .titlepage .title,
+                .titelsida, .smutstitelsida, ._p.title, .titelsida *, .smutstitelsida * {
                     font-size: 24px !important;
                     font-weight: 600 !important;
                     margin-bottom: 12px !important;
@@ -165,9 +281,24 @@ export async function generateOgImage({ browser, url, outputPath }) {
                     word-wrap: break-word !important;
                 }
                 
-                /* Override extreme letter-spacing on any text */
-                .etext.txt * {
+                /* Override extreme letter-spacing on any text - use multiple selectors for specificity */
+                .etext.txt *,
+                .etext *,
+                .reader_main *,
+                #mainview .etext *,
+                .titelsida *,
+                .smutstitelsida *,
+                ._p.title,
+                ._p.title * {
                     letter-spacing: normal !important;
+                }
+                
+                /* Force smaller font on title page elements */
+                .titelsida ._p.title,
+                .smutstitelsida ._p.title,
+                ._p.title .w {
+                    font-size: 28px !important;
+                    letter-spacing: 0.05em !important;
                 }
                 
                 /* Poetry line styling */
@@ -198,6 +329,21 @@ export async function generateOgImage({ browser, url, outputPath }) {
                     display: none !important;
                 }
             `
+        })
+        
+        // Force reset letter-spacing via JavaScript (inline styles have highest specificity)
+        await page.evaluate(() => {
+            // Reset letter-spacing on all text elements
+            document.querySelectorAll('.etext *, .reader_main *, .titelsida *, .smutstitelsida *').forEach(el => {
+                el.style.setProperty('letter-spacing', 'normal', 'important');
+            });
+            // Also reset font-size on title elements to something reasonable
+            document.querySelectorAll('._p.title, ._p.title *, .titelsida ._p, .smutstitelsida ._p').forEach(el => {
+                const currentSize = parseFloat(window.getComputedStyle(el).fontSize);
+                if (currentSize > 40) {
+                    el.style.setProperty('font-size', '28px', 'important');
+                }
+            });
         })
         
         // Take the screenshot
@@ -403,6 +549,7 @@ export function injectOgTags($, url, ogImageBaseUrl) {
 
 export default {
     isReaderPage,
+    isFacsimilePage,
     parseReaderUrl,
     generateOgImage,
     extractMetadata,

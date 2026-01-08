@@ -207,6 +207,15 @@ app.get("/{*splat}", async function(req, res, next) {
         res.send(cleanHtml(content))
     }    
 })
+
+// Global error handlers
+process.on('uncaughtException', (error) => {
+    console.error('Uncaught Exception:', error)
+})
+process.on('unhandledRejection', (reason, promise) => {
+    console.error('Unhandled Rejection at:', promise, 'reason:', reason)
+})
+
 const HOST = process.env.HOST || '0.0.0.0'
 const PORT = process.env.PORT || 8282
 app.listen(PORT, HOST, () => console.log(`Listening on ${HOST}:${PORT}. Fetching from ${SERVER_ROOT}`))

@@ -71,8 +71,8 @@ job "snapshot" {
       }
 
       resources {
-        cpu    = 500   # MHz
-        memory = 1024  # MB - Puppeteer needs memory for Chrome
+        cpu    = 1000  # MHz - increased for Puppeteer concurrency
+        memory = 2048  # MB - Puppeteer needs memory for Chrome instances
       }
 
       service {
