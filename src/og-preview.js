@@ -152,14 +152,22 @@ export async function generateOgImage({ browser, url, outputPath }) {
                     position: relative !important;
                 }
                 
-                /* Style poem headings */
-                ._head, .poemname {
+                /* Style poem headings and title pages */
+                ._head, .poemname, .titlepage h1, .titlepage h2, .titlepage .title {
                     font-size: 24px !important;
                     font-weight: 600 !important;
                     margin-bottom: 12px !important;
                     margin-top: 0 !important;
-                    letter-spacing: 0.05em !important;
+                    letter-spacing: 0.02em !important;
                     color: #1a1a1a !important;
+                    max-width: 100% !important;
+                    overflow: visible !important;
+                    word-wrap: break-word !important;
+                }
+                
+                /* Override extreme letter-spacing on any text */
+                .etext.txt * {
+                    letter-spacing: normal !important;
                 }
                 
                 /* Poetry line styling */
