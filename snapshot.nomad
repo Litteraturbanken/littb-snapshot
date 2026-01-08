@@ -14,6 +14,7 @@
 variable "git_commit" {
   type        = string
   description = "Git commit SHA to deploy (forces redeployment when changed)"
+  default     = "HEAD"
 }
 
 job "snapshot" {
