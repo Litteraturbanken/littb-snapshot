@@ -194,11 +194,9 @@ app.get("/{*splat}", async function(req, res, next) {
         // Inject OG tags for reader pages (/sida/ URLs)
         if (!errType && ogPreview.isReaderPage(path)) {
             try {
-                // Use the request host for OG image URLs so dev.lb.se points to dev.lb.se/og-image
-                const protocol = req.headers['x-forwarded-proto'] || req.protocol || 'https'
-                const host = req.headers['x-forwarded-host'] || req.headers.host || req.hostname
-                const requestBaseUrl = `${protocol}://${host}`
-                ogPreview.injectOgTags($, from, requestBaseUrl)
+                // Use SERVER_ROOT for OG image URLs in production
+                // This ensures the public URL is used, not the internal service URL
+                ogPreview.injectOgTags($, from, SERVER_ROOT)
                 content = $.html()
             } catch(e) {
                 console.error("Error injecting OG tags:", e)
