@@ -66,8 +66,12 @@ app.get('/og-image/{*splat}', async function(req, res) {
     try {
         const imageBuffer = await ogPreview.generateOgImage({ browser, url: targetUrl })
         
+        // Set headers explicitly for social media crawlers
         res.set('Content-Type', 'image/jpeg')
-        res.set('Cache-Control', 'public, max-age=86400') // Cache for 24 hours
+        res.set('Content-Length', imageBuffer.length)
+        res.set('Cache-Control', 'public, max-age=86400, immutable') // Cache for 24 hours
+        res.set('Vary', 'Accept-Encoding')
+        res.set('X-Content-Type-Options', 'nosniff')
         res.send(imageBuffer)
     } catch(e) {
         console.error("OG image generation error:", e)
@@ -190,7 +194,11 @@ app.get("/{*splat}", async function(req, res, next) {
         // Inject OG tags for reader pages (/sida/ URLs)
         if (!errType && ogPreview.isReaderPage(path)) {
             try {
-                ogPreview.injectOgTags($, from, OG_IMAGE_BASE_URL)
+                // Use the request host for OG image URLs so dev.lb.se points to dev.lb.se/og-image
+                const protocol = req.headers['x-forwarded-proto'] || req.protocol || 'https'
+                const host = req.headers['x-forwarded-host'] || req.headers.host || req.hostname
+                const requestBaseUrl = `${protocol}://${host}`
+                ogPreview.injectOgTags($, from, requestBaseUrl)
                 content = $.html()
             } catch(e) {
                 console.error("Error injecting OG tags:", e)

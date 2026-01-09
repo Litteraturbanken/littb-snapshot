@@ -162,19 +162,19 @@ export async function generateOgImage({ browser, url, outputPath }) {
     
     let page = null
     
+    // Use a real browser user agent - the custom littb-snapshot-og agent may be blocked by Cloudflare
+    const CHROME_UA = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+    
     try {
         page = await browser.newPage()
-        await page.setUserAgent("littb-snapshot-og")
+        await page.setUserAgent(CHROME_UA)
         
         // Block unnecessary resources for faster loading
         await page.setRequestInterception(true)
         page.on('request', (req) => {
             const resourceType = req.resourceType()
-            // Block images, media, and tracking scripts - we only need HTML/CSS/fonts
+            // Block images, media, and websockets - we only need HTML/CSS/JS/fonts
             if (['image', 'media', 'websocket'].includes(resourceType)) {
-                req.abort()
-            } else if (resourceType === 'script' && !req.url().includes('litteraturbanken')) {
-                // Block third-party scripts (analytics, etc.)
                 req.abort()
             } else {
                 req.continue()
@@ -188,11 +188,27 @@ export async function generateOgImage({ browser, url, outputPath }) {
             deviceScaleFactor: 1.5 // Slightly lower for speed, still good quality
         })
         
-        // Use domcontentloaded + waitForSelector instead of slow networkidle0
-        await page.goto(url, { waitUntil: "domcontentloaded" })
+        // Wait for page to load - use networkidle2 for Angular SPA
+        await page.goto(url, { waitUntil: "networkidle2", timeout: 30000 })
         
         // Wait for the text content to load
-        await page.waitForSelector('.etext.txt', { timeout: 10000 })
+        try {
+            // Wait for loading to complete first (Angular shows 'searching' class while loading)
+            await page.waitForFunction(
+                () => !document.querySelector('.searching'),
+                { timeout: 20000 }
+            )
+            // Then wait for the text content
+            await page.waitForSelector('.etext.txt, .etext', { timeout: 10000 })
+        } catch (selectorError) {
+            // Check if this is a page that doesn't exist or has no content
+            const hasSearching = await page.evaluate(() => !!document.querySelector('.searching'))
+            if (hasSearching) {
+                console.error('[OG Preview] Page content never loaded (stuck in searching state) for:', url)
+                throw new Error('Page content could not be loaded - the page may not exist')
+            }
+            throw selectorError
+        }
         
         // Inject custom styles for OG preview
         await page.addStyleTag({
@@ -464,6 +480,7 @@ export function generateOgMetaTags({ url, imageUrl, metadata }) {
 <meta property="og:title" content="${escapeHtml(title)}">
 <meta property="og:description" content="${escapeHtml(ogDescription)}">
 <meta property="og:image" content="${escapeHtml(imageUrl)}">
+<meta property="og:image:type" content="image/jpeg">
 <meta property="og:image:width" content="${OG_IMAGE_WIDTH}">
 <meta property="og:image:height" content="${OG_IMAGE_HEIGHT}">
 <meta property="og:site_name" content="Litteraturbanken">
@@ -535,14 +552,18 @@ export function extractMetadataFromHtml($) {
 
 /**
  * Inject OG meta tags into HTML head
+ * IMPORTANT: We use prepend() to add tags at the BEGINNING of <head>
+ * because Slack only reads the first 32KB and Apple/others have similar limits.
+ * If we append(), the tags end up after ~200KB of inlined CSS and are never seen.
  */
 export function injectOgTags($, url, ogImageBaseUrl) {
     const metadata = extractMetadataFromHtml($)
     const imageUrl = ogImageBaseUrl + '/og-image' + new URL(url).pathname
     const metaTags = generateOgMetaTags({ url, imageUrl, metadata })
     
-    // Inject into head
-    $('head').append('\n' + metaTags + '\n')
+    // Inject at the BEGINNING of head so unfurlers see it within their byte limits
+    // Slack: 32KB, Facebook: 512KB, Twitter: 1MB, LinkedIn: 3MB
+    $('head').prepend('\n' + metaTags + '\n')
     
     return $
 }
