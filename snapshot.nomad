@@ -24,11 +24,8 @@ job "snapshot" {
   group "snapshot" {
     count = 3  # Scale horizontally for parallel request handling
 
-    # Run on bare-metal to free cloud node disk space (no CSI needed).
-    constraint {
-      attribute = "${meta.node_type}"
-      value     = "bare-metal"
-    }
+    # Allow running on any node type - bare-metal has apt-get update issues
+    # Bridge networking allows multiple instances per node
 
     # Chromium install takes ~50s, so need longer deadline
     update {
