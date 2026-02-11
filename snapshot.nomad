@@ -37,11 +37,11 @@ job "snapshot" {
     }
 
     network {
-      mode = "host"
+      mode = "bridge"
 
       port "http" {
         to = 8282
-        # Use dynamic port to allow multiple instances on same node
+        # Dynamic host port mapped to container port 8282
         # Caddy will discover via Consul service registry
       }
     }
@@ -51,7 +51,6 @@ job "snapshot" {
 
       config {
         image        = "node:20-slim"
-        network_mode = "host"
         ports        = ["http"]
         work_dir     = "/local"
         command      = "/bin/bash"
@@ -72,7 +71,7 @@ job "snapshot" {
       env {
         NODE_ENV                  = "production"
         HOST                      = "0.0.0.0"
-        PORT                      = "${NOMAD_PORT_http}"
+        PORT                      = "8282"  # Container port with bridge networking
         SERVER_ROOT               = "https://litteraturbanken.se"
         PUPPETEER_EXECUTABLE_PATH = "/usr/bin/chromium"
         PUPPETEER_SKIP_CHROMIUM_DOWNLOAD = "true"
@@ -93,7 +92,6 @@ job "snapshot" {
           "caddy-ingress=public"
         ]
         provider = "consul"
-        address  = "${meta.bind_ip}"
 
         check {
           type     = "http"
