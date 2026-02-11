@@ -24,8 +24,12 @@ job "snapshot" {
   group "snapshot" {
     count = 3  # Scale horizontally for parallel request handling
 
-    # Allow running on any node type - bare-metal has apt-get update issues
+    # Run only on lb-nlp-c node which has working apt mirrors
     # Bridge networking allows multiple instances per node
+    constraint {
+      attribute = "${node.unique.name}"
+      value     = "lb-nlp-c"
+    }
 
     # Chromium install takes ~50s, so need longer deadline
     update {
