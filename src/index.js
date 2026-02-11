@@ -14,11 +14,13 @@ let browserError = null // tracks browser-level failures for health check
 let browserInitializing = false // prevent concurrent initialization
 
 function isBrowserError(error) {
-    return error.name === 'ProtocolError' ||
-        error.message?.includes('timed out') ||
-        error.message?.includes('Target closed') ||
-        error.message?.includes('Session closed') ||
-        error.message?.includes('Browser closed')
+    // Only true browser crashes should destroy the pool, not page-level errors
+    // Be very conservative - page timeouts and navigation errors are NOT browser errors
+    return error.name === 'ProtocolError' && (
+        error.message?.includes('Browser closed') ||
+        error.message?.includes('Connection closed') ||
+        error.message?.includes('Session closed')
+    )
 }
 
 async function closeBrowser() {
