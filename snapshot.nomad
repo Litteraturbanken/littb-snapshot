@@ -53,24 +53,20 @@ job "snapshot" {
         image        = "node:20-slim"
         network_mode = "host"
         ports        = ["http"]
-        work_dir     = "/local/app"
+        work_dir     = "/local"
         command      = "/bin/bash"
         args         = [
           "-c",
-          "apt-get update && apt-get install -y chromium --no-install-recommends && npm install --omit=dev && npm start"
+          "cd littb-snapshot-* && apt-get update && apt-get install -y chromium --no-install-recommends && npm install --omit=dev && npm start"
         ]
       }
 
       # Fetch the app from GitHub tarball (avoids git permission issues)
       # Set GIT_COMMIT env var before running: nomad job run -var="git_commit=$(git ls-remote ...)"
-      # GitHub tarballs extract to {repo}-{short-commit}/ format, so we strip the directory
+      # GitHub tarballs extract to littb-snapshot-{commit}/ directory
       artifact {
         source      = "https://github.com/Litteraturbanken/littb-snapshot/archive/${var.git_commit}.tar.gz"
         destination = "local"
-        options {
-          archive      = "true"
-          strip_prefix = "1"  # Remove the top-level littb-snapshot-{hash} directory
-        }
       }
 
       env {
