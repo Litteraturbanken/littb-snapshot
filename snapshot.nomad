@@ -40,8 +40,9 @@ job "snapshot" {
       mode = "host"
 
       port "http" {
-        to     = 8282
-        static = 8282
+        to = 8282
+        # Use dynamic port to allow multiple instances on same node
+        # Caddy will discover via Consul service registry
       }
     }
 
@@ -52,7 +53,7 @@ job "snapshot" {
         image        = "node:20-slim"
         network_mode = "host"
         ports        = ["http"]
-        work_dir     = "/local/littb-snapshot-${var.git_commit}"
+        work_dir     = "/local/app"
         command      = "/bin/bash"
         args         = [
           "-c",
@@ -62,11 +63,13 @@ job "snapshot" {
 
       # Fetch the app from GitHub tarball (avoids git permission issues)
       # Set GIT_COMMIT env var before running: nomad job run -var="git_commit=$(git ls-remote ...)"
+      # GitHub tarballs extract to {repo}-{short-commit}/ format, so we strip the directory
       artifact {
         source      = "https://github.com/Litteraturbanken/littb-snapshot/archive/${var.git_commit}.tar.gz"
         destination = "local"
         options {
-          archive = "true"
+          archive      = "true"
+          strip_prefix = "1"  # Remove the top-level littb-snapshot-{hash} directory
         }
       }
 
