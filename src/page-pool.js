@@ -61,6 +61,7 @@ class PagePool {
             page._isTemporary = true
         } else {
             // Reset page state before reuse
+            console.log(`[PagePool] Acquired page from pool (${this.busyPages.size + 1} busy, ${this.availablePages.length} available)`)
             await this.resetPage(page)
         }
 
@@ -88,48 +89,28 @@ class PagePool {
 
         // Return to pool for reuse
         this.availablePages.push(page)
+        console.log(`[PagePool] Released page to pool (${this.busyPages.size} busy, ${this.availablePages.length} available)`)
     }
 
     /**
      * Reset page state between requests
+     * SIMPLIFIED: Don't navigate to about:blank to avoid frame detach issues
+     * Each request will set its own state (user agent, interception, etc.)
      */
     async resetPage(page) {
         try {
-            // Clear all event listeners
+            // Only clear event listeners - let each request set its own state
             page.removeAllListeners()
-
-            // Disable request interception if it was enabled
-            try {
-                await page.setRequestInterception(false)
-            } catch (e) {
-                // Ignore - may not have been enabled
-            }
-
-            // Reset viewport to default
-            await page.setViewport({
-                width: 1280,
-                height: 720,
-                deviceScaleFactor: 1
-            })
-
-            // Navigate to blank page to clear state
-            await page.goto('about:blank', { waitUntil: 'domcontentloaded', timeout: 5000 })
-
         } catch (e) {
-            console.error('[PagePool] Error resetting page:', e)
-            // If reset fails, close the page and create a new one
+            console.error('[PagePool] Error resetting page:', e.message)
+            // If even this fails, the page is probably dead - create a new one
             try {
                 await page.close()
             } catch (_) {}
 
             // Create replacement page
-            try {
-                const newPage = await this.browser.newPage()
-                return newPage
-            } catch (e2) {
-                console.error('[PagePool] Failed to create replacement page:', e2)
-                throw e2
-            }
+            const newPage = await this.browser.newPage()
+            return newPage
         }
 
         return page

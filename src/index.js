@@ -11,6 +11,7 @@ import * as cheerio from "cheerio"
 let browser = null
 let pagePool = null
 let browserError = null // tracks browser-level failures for health check
+let browserInitializing = false // prevent concurrent initialization
 
 function isBrowserError(error) {
     return error.name === 'ProtocolError' ||
@@ -32,16 +33,26 @@ async function closeBrowser() {
 }
 
 async function ensureBrowser() {
-    if (!browser || !browser.connected) {
-        browser = await puppeteer.launch({
-            executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || undefined,
-            args: ["--no-sandbox", '--disable-dev-shm-usage', '--disable-setuid-sandbox']
-        })
-        browserError = null
+    // If already initializing, wait for it to complete
+    while (browserInitializing) {
+        await new Promise(resolve => setTimeout(resolve, 50))
+    }
 
-        // Initialize page pool with 5 pages (balances memory usage vs performance)
-        pagePool = new PagePool(browser, 5)
-        await pagePool.init()
+    if (!browser || !browser.connected) {
+        browserInitializing = true
+        try {
+            browser = await puppeteer.launch({
+                executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || undefined,
+                args: ["--no-sandbox", '--disable-dev-shm-usage', '--disable-setuid-sandbox']
+            })
+            browserError = null
+
+            // Initialize page pool with 5 pages (balances memory usage vs performance)
+            pagePool = new PagePool(browser, 5)
+            await pagePool.init()
+        } finally {
+            browserInitializing = false
+        }
     }
 }
 
@@ -218,7 +229,7 @@ app.get("/{*splat}", async function(req, res, next) {
 
     let errMsg, errType
     try {
-        var content = await crawler({ url : from, browser})
+        var content = await crawler({ url : from, browser, pagePool})
     } catch(e) {
         console.warn("fetch error", e)
         if (isBrowserError(e)) {

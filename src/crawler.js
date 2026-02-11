@@ -6,12 +6,16 @@ async function crawler({ browser, pagePool, url }) {
     let html = false
     let fromPool = false
 
+    console.log(`[Crawler] pagePool available: ${!!pagePool}`)
+
     try {
         // Try to get page from pool, fallback to creating new page
         if (pagePool) {
+            console.log('[Crawler] Using page pool')
             page = await pagePool.acquire()
             fromPool = true
         } else {
+            console.log('[Crawler] Creating new page (no pool)')
             page = await browser.newPage()
         }
 
