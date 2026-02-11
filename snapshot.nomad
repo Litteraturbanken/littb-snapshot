@@ -52,7 +52,7 @@ job "snapshot" {
         image        = "node:20-slim"
         network_mode = "host"
         ports        = ["http"]
-        work_dir     = "/local/app"
+        work_dir     = "/local/littb-snapshot-${var.git_commit}"
         command      = "/bin/bash"
         args         = [
           "-c",
@@ -60,11 +60,14 @@ job "snapshot" {
         ]
       }
 
-      # Fetch the app from git
+      # Fetch the app from GitHub tarball (avoids git permission issues)
       # Set GIT_COMMIT env var before running: nomad job run -var="git_commit=$(git ls-remote ...)"
       artifact {
-        source      = "git::https://github.com/Litteraturbanken/littb-snapshot.git?ref=${var.git_commit}"
-        destination = "local/app"
+        source      = "https://github.com/Litteraturbanken/littb-snapshot/archive/${var.git_commit}.tar.gz"
+        destination = "local"
+        options {
+          archive = "true"
+        }
       }
 
       env {
