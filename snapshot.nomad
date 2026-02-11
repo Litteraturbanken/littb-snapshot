@@ -22,7 +22,13 @@ job "snapshot" {
   type        = "service"
 
   group "snapshot" {
-    count = 1
+    count = 3  # Scale horizontally for parallel request handling
+
+    # Run on bare-metal to free cloud node disk space (no CSI needed).
+    constraint {
+      attribute = "${meta.node_type}"
+      value     = "bare-metal"
+    }
 
     # Chromium install takes ~50s, so need longer deadline
     update {
@@ -71,8 +77,8 @@ job "snapshot" {
       }
 
       resources {
-        cpu    = 1000  # MHz - increased for Puppeteer concurrency
-        memory = 2048  # MB - Puppeteer needs memory for Chrome instances
+        cpu    = 1500  # MHz - Increased for Puppeteer CPU-bound operations
+        memory = 2048  # MB - Increased for Chrome headroom and page pooling
       }
 
       service {

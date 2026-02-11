@@ -1,29 +1,53 @@
 
 
-async function crawler({ browser, url }) {
+async function crawler({ browser, pagePool, url }) {
 
     let page = null
     let html = false
+    let fromPool = false
 
     try {
-        page = await browser.newPage()
+        // Try to get page from pool, fallback to creating new page
+        if (pagePool) {
+            page = await pagePool.acquire()
+            fromPool = true
+        } else {
+            page = await browser.newPage()
+        }
+
         await page.setUserAgent("littb-snapshot")
-        // page.on('console', msg => console.log('PAGE LOG:', msg.text()))
-        // await page.evaluate(() => console.log(`UA is ${navigator.userAgent}`))
-        //networkidle0: consider navigation to be finished when
-        //there are no more than 2 network connections for at least 500 ms.
-        //(https://github.com/GoogleChrome/puppeteer/blob/master/docs/api.md#pagegobackoptions)
-        
+
+        // Block unnecessary resources for faster loading
+        await page.setRequestInterception(true)
+        page.on('request', (req) => {
+            const resourceType = req.resourceType()
+            // Block images, media, fonts, and websockets - we only need HTML/CSS/JS
+            if (['image', 'media', 'font', 'websocket'].includes(resourceType)) {
+                req.abort()
+            } else {
+                req.continue()
+            }
+        })
+
         page.on('pageerror', pageerr => {
             console.log('pageerror occurred: ', pageerr);
         })
-        await page.goto(url, { waitUntil: "networkidle0" })
+
+        // networkidle2: faster than networkidle0 - allows up to 2 network connections
+        // instead of waiting for complete silence (500ms with 0 connections)
+        await page.goto(url, { waitUntil: "networkidle2", timeout: 15000 })
         html = await page.content()
     } catch (e) {
         throw e
     } finally {
         if (page) {
-            await page.close()
+            if (fromPool && pagePool) {
+                // Return page to pool for reuse
+                await pagePool.release(page)
+            } else {
+                // Close page if not from pool
+                await page.close()
+            }
         }
     }
     return html

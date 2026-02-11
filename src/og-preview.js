@@ -69,11 +69,18 @@ export function parseReaderUrl(urlPath) {
  * Generate OG image for a facsimile page by fetching the underlying image
  * and resizing/cropping it to OG dimensions
  */
-async function generateFacsimileOgImage({ browser, url }) {
+async function generateFacsimileOgImage({ browser, pagePool, url }) {
     let page = null
-    
+    let fromPool = false
+
     try {
-        page = await browser.newPage()
+        // Try to get page from pool, fallback to creating new page
+        if (pagePool) {
+            page = await pagePool.acquire()
+            fromPool = true
+        } else {
+            page = await browser.newPage()
+        }
         await page.setUserAgent("littb-snapshot-og")
         
         // Navigate and wait for the facsimile image to load
@@ -135,10 +142,14 @@ async function generateFacsimileOgImage({ browser, url }) {
             .toBuffer()
         
         return processedImage
-        
+
     } finally {
         if (page) {
-            await page.close()
+            if (fromPool && pagePool) {
+                await pagePool.release(page)
+            } else {
+                await page.close()
+            }
         }
     }
 }
@@ -146,27 +157,34 @@ async function generateFacsimileOgImage({ browser, url }) {
 /**
  * Generate OG preview image from a reader page
  */
-export async function generateOgImage({ browser, url, outputPath }) {
+export async function generateOgImage({ browser, pagePool, url, outputPath }) {
     // Check cache first
     const cached = getCachedImage(url)
     if (cached) {
         return cached
     }
-    
+
     // For facsimile pages, fetch the underlying image directly (much faster)
     if (isFacsimilePage(url)) {
-        const imageBuffer = await generateFacsimileOgImage({ browser, url })
+        const imageBuffer = await generateFacsimileOgImage({ browser, pagePool, url })
         setCachedImage(url, imageBuffer)
         return imageBuffer
     }
-    
+
     let page = null
+    let fromPool = false
     
     // Use a real browser user agent - the custom littb-snapshot-og agent may be blocked by Cloudflare
     const CHROME_UA = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
-    
+
     try {
-        page = await browser.newPage()
+        // Try to get page from pool, fallback to creating new page
+        if (pagePool) {
+            page = await pagePool.acquire()
+            fromPool = true
+        } else {
+            page = await browser.newPage()
+        }
         await page.setUserAgent(CHROME_UA)
         
         // Block unnecessary resources for faster loading
@@ -378,10 +396,14 @@ export async function generateOgImage({ browser, url, outputPath }) {
         setCachedImage(url, screenshotBuffer)
         
         return screenshotBuffer
-        
+
     } finally {
         if (page) {
-            await page.close()
+            if (fromPool && pagePool) {
+                await pagePool.release(page)
+            } else {
+                await page.close()
+            }
         }
     }
 }
@@ -389,11 +411,18 @@ export async function generateOgImage({ browser, url, outputPath }) {
 /**
  * Extract metadata from a reader page
  */
-export async function extractMetadata({ browser, url }) {
+export async function extractMetadata({ browser, pagePool, url }) {
     let page = null
-    
+    let fromPool = false
+
     try {
-        page = await browser.newPage()
+        // Try to get page from pool, fallback to creating new page
+        if (pagePool) {
+            page = await pagePool.acquire()
+            fromPool = true
+        } else {
+            page = await browser.newPage()
+        }
         await page.setUserAgent("littb-snapshot-og")
         
         await page.goto(url, { waitUntil: "networkidle0" })
@@ -441,10 +470,14 @@ export async function extractMetadata({ browser, url }) {
         })
         
         return metadata
-        
+
     } finally {
         if (page) {
-            await page.close()
+            if (fromPool && pagePool) {
+                await pagePool.release(page)
+            } else {
+                await page.close()
+            }
         }
     }
 }
