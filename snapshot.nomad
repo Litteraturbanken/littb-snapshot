@@ -25,11 +25,11 @@ job "snapshot" {
     count = 3  # Scale horizontally for parallel request handling
 
     # Run only on lb-nlp-c node which has working apt mirrors
-    # Bridge networking allows multiple instances per node
-    constraint {
-      attribute = "${node.unique.name}"
-      value     = "lb-nlp-c"
-    }
+    # Host networking - dynamic ports avoid conflicts between instances
+    # constraint {
+    #   attribute = "${node.unique.name}"
+    #   value     = "lb-nlp-c"
+    # }
 
     # Chromium install takes ~50s, so need longer deadline
     update {
@@ -38,12 +38,10 @@ job "snapshot" {
     }
 
     network {
-      mode = "bridge"
+      mode = "host"
 
       port "http" {
-        to = 8282
-        # Dynamic host port mapped to container port 8282
-        # Caddy will discover via Consul service registry
+        # Dynamic host port; Caddy discovers via Consul service registry
       }
     }
 
@@ -72,7 +70,7 @@ job "snapshot" {
       env {
         NODE_ENV                  = "production"
         HOST                      = "0.0.0.0"
-        PORT                      = "8282"  # Container port with bridge networking
+        PORT                      = "${NOMAD_PORT_http}"
         SERVER_ROOT               = "https://litteraturbanken.se"
         PUPPETEER_EXECUTABLE_PATH = "/usr/bin/chromium"
         PUPPETEER_SKIP_CHROMIUM_DOWNLOAD = "true"
