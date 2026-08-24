@@ -37,9 +37,9 @@ async function crawler({ browser, pagePool, url }) {
             console.log('pageerror occurred: ', pageerr);
         })
 
-        // networkidle2: faster than networkidle0 - allows up to 2 network connections
-        // instead of waiting for complete silence (500ms with 0 connections)
-        await page.goto(url, { waitUntil: "networkidle2", timeout: 15000 })
+        // The Angular app can still be populating large result sets while two
+        // API requests remain active, so wait for complete network quiescence.
+        await page.goto(url, { waitUntil: "networkidle0", timeout: 15000 })
         html = await page.content()
     } catch (e) {
         throw e
