@@ -6,6 +6,7 @@
  */
 
 import sharp from 'sharp'
+import { isTypographyUrl, blockTypography } from './font-policy'
 
 const OG_IMAGE_WIDTH = 1200
 const OG_IMAGE_HEIGHT = 630
@@ -82,6 +83,7 @@ async function generateFacsimileOgImage({ browser, pagePool, url }) {
             page = await browser.newPage()
         }
         await page.setUserAgent("littb-snapshot-og")
+        await blockTypography(page)
         
         // Navigate and wait for the facsimile image to load
         await page.goto(url, { waitUntil: "domcontentloaded", timeout: 30000 })
@@ -192,7 +194,7 @@ export async function generateOgImage({ browser, pagePool, url, outputPath }) {
         page.on('request', (req) => {
             const resourceType = req.resourceType()
             // Block images, media, and websockets - we only need HTML/CSS/JS/fonts
-            if (['image', 'media', 'websocket'].includes(resourceType)) {
+            if (isTypographyUrl(req.url()) || ['image', 'media', 'websocket'].includes(resourceType)) {
                 req.abort()
             } else {
                 req.continue()
@@ -424,6 +426,7 @@ export async function extractMetadata({ browser, pagePool, url }) {
             page = await browser.newPage()
         }
         await page.setUserAgent("littb-snapshot-og")
+        await blockTypography(page)
         
         await page.goto(url, { waitUntil: "networkidle0" })
         await page.waitForSelector('.etext.txt', { timeout: 10000 })

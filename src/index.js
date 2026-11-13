@@ -3,6 +3,7 @@ import { createProxyMiddleware } from "http-proxy-middleware"
 import crawler from "./crawler"
 import ogPreview from "./og-preview"
 import PagePool from "./page-pool"
+import { isTypographyUrl } from "./font-policy"
 
 import puppeteer from "puppeteer"
 import url from "url"
@@ -66,6 +67,9 @@ const OG_IMAGE_BASE_URL = process.env.OG_IMAGE_BASE_URL || SERVER_ROOT
 function cleanHtml(html) {
     const $ = cheerio.load(html)
     $("script[src]").remove()
+    $("link[href]").each((_, element) => {
+        if (isTypographyUrl($(element).attr('href'))) $(element).remove()
+    })
     return $.html()
 }
 

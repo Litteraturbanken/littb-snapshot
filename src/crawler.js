@@ -1,3 +1,4 @@
+import { isTypographyUrl } from "./font-policy"
 
 
 async function crawler({ browser, pagePool, url }) {
@@ -26,7 +27,7 @@ async function crawler({ browser, pagePool, url }) {
         page.on('request', (req) => {
             const resourceType = req.resourceType()
             // Block images, media, fonts, and websockets - we only need HTML/CSS/JS
-            if (['image', 'media', 'font', 'websocket'].includes(resourceType)) {
+            if (isTypographyUrl(req.url()) || ['image', 'media', 'font', 'websocket'].includes(resourceType)) {
                 req.abort()
             } else {
                 req.continue()
