@@ -6,7 +6,7 @@
  */
 
 import sharp from 'sharp'
-import { isTypographyUrl, blockTypography } from './font-policy'
+import { blockTypography } from './font-policy'
 
 const OG_IMAGE_WIDTH = 1200
 const OG_IMAGE_HEIGHT = 630
@@ -194,7 +194,7 @@ export async function generateOgImage({ browser, pagePool, url, outputPath }) {
         page.on('request', (req) => {
             const resourceType = req.resourceType()
             // Block images, media, and websockets - we only need HTML/CSS/JS/fonts
-            if (isTypographyUrl(req.url()) || ['image', 'media', 'websocket'].includes(resourceType)) {
+            if (['image', 'media', 'websocket'].includes(resourceType)) {
                 req.abort()
             } else {
                 req.continue()
@@ -382,6 +382,10 @@ export async function generateOgImage({ browser, pagePool, url, outputPath }) {
             });
         })
         
+        // Image previews need the site's real typography, unlike HTML-only
+        // scraper snapshots. Wait for font loading after final layout changes.
+        await page.evaluate(() => document.fonts.ready)
+
         // Take the screenshot
         const screenshotBuffer = await page.screenshot({
             type: 'jpeg',

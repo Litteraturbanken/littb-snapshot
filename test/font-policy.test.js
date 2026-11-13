@@ -2,6 +2,7 @@ import assert from 'assert'
 import http from 'http'
 import puppeteer from 'puppeteer'
 import crawler from '../src/crawler'
+import { generateOgImage } from '../src/og-preview'
 import { blockTypography, isTypographyUrl } from '../src/font-policy'
 
 async function main() {
@@ -10,7 +11,7 @@ async function main() {
     const server = http.createServer((req, res) => {
         res.setHeader('Content-Type', req.url === '/local.css' ? 'text/css' : 'text/html')
         res.end(req.url === '/local.css' ? 'body { color: rgb(1, 2, 3) }' :
-            '<link rel="stylesheet" href="https://cloud.typography.com/7426274/770508/css/fonts.css"><link rel="stylesheet" href="/local.css"><main id="mainview"></main><script>document.querySelector("main").textContent="SPA rendered"</script>')
+            '<link rel="stylesheet" href="https://cloud.typography.com/7426274/770508/css/fonts.css"><link rel="stylesheet" href="/local.css"><main id="mainview" class="etext txt"></main><script>document.querySelector("main").textContent="SPA rendered"</script>')
     })
     await new Promise(resolve => server.listen(0, '127.0.0.1', resolve))
     let browser
@@ -36,7 +37,27 @@ async function main() {
             assert(!completed.some(isTypographyUrl))
             assert(completed.some(url => url.endsWith('/local.css')))
         }
-        console.log('font policy browser tests passed')
+        // Exercise the actual screenshot path, serving a fixture for the
+        // provider CSS so the test never contacts typography.com.
+        const imagePage = await browser.newPage()
+        const completed = []
+        imagePage.on('requestfinished', req => completed.push(req.url()))
+        const on = imagePage.on.bind(imagePage)
+        imagePage.on = (event, handler) => {
+            if (event !== 'request') return on(event, handler)
+            return on(event, req => handler({
+                url: () => req.url(),
+                resourceType: () => req.resourceType(),
+                abort: () => req.abort(),
+                continue: () => isTypographyUrl(req.url())
+                    ? req.respond({ status: 200, contentType: 'text/css', body: 'body { font-family: serif }' })
+                    : req.continue()
+            }))
+        }
+        const jpeg = await generateOgImage({ browser: { newPage: async () => imagePage }, url })
+        assert(completed.some(isTypographyUrl), 'OG screenshots must load provider CSS')
+        assert.equal(jpeg.subarray(0, 2).toString('hex'), 'ffd8')
+        console.log('font policy browser tests passed: HTML blocked, OG image allowed')
     } finally {
         if (browser) await browser.close()
         await new Promise(resolve => server.close(resolve))
